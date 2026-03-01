@@ -1,0 +1,5 @@
+{
+  "name": "PT NDS Inventory System",
+  "description": "Warehouse inventory system for Oxygen & LPG Cylinders, Paint, and Steel/Metal with transaction-based tracking and PDF reporting.",
+  "requestFramePermissions": []
+}
