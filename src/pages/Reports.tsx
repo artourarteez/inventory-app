@@ -277,10 +277,19 @@ export default function Reports() {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(blobUrl);
+      setExportSuccess(uiText.reports.exportSuccess);
+      setTimeout(() => setExportSuccess(''), 3000);
     } catch (error) {
       const message = await extractPdfErrorMessage(error, uiText.common.error);
       setExportError(message);
     }
+  };
+
+  const renderSteelUsageEmptyState = () => {
+    if (!steelFilterApplied) {
+      return <p className="text-center py-8 text-muted-foreground">Terapkan filter untuk melihat data</p>;
+    }
+    return <p className="text-center py-8 text-muted-foreground">Tidak ada data untuk filter ini</p>;
   };
 
   if (view === 'txHistory') {
@@ -527,15 +536,17 @@ export default function Reports() {
   if (view === 'steelUsage') {
     return (
       <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => setView('menu')}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">{uiText.reports.steelUsage}</h2>
-            <p className="text-muted-foreground">{uiText.reports.steelUsageDesc}</p>
+        {exportError && (
+          <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">
+            {exportError}
           </div>
-        </div>
+        )}
+
+        {exportSuccess && (
+          <div className="bg-success/15 text-success text-sm p-3 rounded-md">
+            {exportSuccess}
+          </div>
+        )}
 
         <div className="rounded-xl border bg-card p-4 shadow-sm">
           <form onSubmit={handleApplyFilter} className="space-y-4">

@@ -197,6 +197,7 @@ export default function Transactions() {
         : '';
 
   const isSubmitDisabled =
+    isSubmitting || // Disable while submitting
     !formData.item_id ||
     !formData.quantity ||
     (isShipRequired && !formData.ship_name.trim()) ||
@@ -217,6 +218,8 @@ export default function Transactions() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return; // Prevent double submission
+
     setFormError('');
     setIsSubmitting(true);
 
@@ -230,8 +233,6 @@ export default function Transactions() {
         notes: formData.notes,
         user_name: formData.user_name || null,
         ship_name: formData.ship_name || null,
-
-        // ⬇️ INI YANG PENTING
         photo_url: photos.length > 0 ? photos[0] : null,
         signature_url: signature
       });
@@ -258,164 +259,108 @@ export default function Transactions() {
           <h2 className="text-2xl font-bold tracking-tight">{uiText.transactions.title}</h2>
           <p className="text-muted-foreground">{uiText.transactions.desc}</p>
         </div>
-        <Dialog open={open} onOpenChange={(isOpen) => { setOpen(isOpen); if (!isOpen) setFormError(''); }}>
-          <DialogTrigger asChild>
-            <Button className="w-full sm:w-auto">{uiText.transactions.newTx}</Button>
-          </DialogTrigger>
-          <DialogContent className="max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{uiText.transactions.recordTx}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {formError && (
-                <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">
-                  {formError}
-                </div>
-              )}
-              <div className="space-y-2">
-                <Label>{uiText.transactions.item}</Label>
-                <Select value={formData.item_id} onValueChange={v => setFormData({ ...formData, item_id: v })}>
-                  <SelectTrigger><SelectValue placeholder={uiText.transactions.selectItem} /></SelectTrigger>
-                  <SelectContent>
-                    {items.map(item => (
-                      <SelectItem key={item.id} value={item.id}>
-                        {item.name} ({item.id})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>{uiText.transactions.type}</Label>
-                <Select value={formData.type} onValueChange={v => setFormData({ ...formData, type: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="IN">{uiText.transactions.stockIn}</SelectItem>
-                    <SelectItem value="OUT">{uiText.transactions.stockOut}</SelectItem>
-                    <SelectItem value="EXCHANGE">{uiText.transactions.exchange}</SelectItem>
-                    <SelectItem value="ADJUSTMENT">{uiText.transactions.adjustment}</SelectItem>
-                    <SelectItem value="DIRECT_EDIT">{uiText.transactions.directEdit}</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">{transactionTypeHint}</p>
-              </div>
-              <div className="space-y-2">
-                <Label>{quantityLabel}</Label>
-                <Input type="number" step="0.01" required value={formData.quantity} onChange={e => setFormData({ ...formData, quantity: e.target.value })} />
-                {quantityHint && <p className="text-xs text-muted-foreground">{quantityHint}</p>}
-              </div>
-              {showUserField && (
-                <div className="space-y-2">
-                  <Label>{uiText.transactions.user}</Label>
-                  <Input value={formData.user_name} onChange={e => setFormData({ ...formData, user_name: e.target.value })} placeholder={uiText.transactions.userPlaceholder} />
-                </div>
-              )}
-              {showShipField && (
-                <div className="space-y-2">
-                  <Label>
-                    {uiText.transactions.ship}
-                    {isShipRequired && <span className="text-destructive ml-1">*</span>}
-                  </Label>
-                  <Input required={isShipRequired} value={formData.ship_name} onChange={e => setFormData({ ...formData, ship_name: e.target.value })} />
-                </div>
-              )}
-              <div className="space-y-2">
-                <Label>{uiText.transactions.notes}</Label>
-                <Input value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} />
-              </div>
-
-              <div className="space-y-2">
-                <Label>
-                  {uiText.transactions.photo}
-                  {isPhotoRequired && <span className="text-destructive ml-1">*</span>}
-                </Label>
-                <Input type="file" multiple accept="image/*" onChange={handlePhotoChange} />
-                {isPhotoRequired && photos.length === 0 && (
-                  <p className="text-xs text-destructive">{uiText.transactions.photoRequired}</p>
-                )}
-                {!isPhotoRequired && isPhotoOptional && (
-                  <p className="text-xs text-muted-foreground">{uiText.transactions.photoOptional}</p>
-                )}
-              </div>
-
-              {showSignatureField && (
-                <div className="space-y-2">
-                  <Label>
-                    {uiText.transactions.signature}
-                    {isSignatureRequired && <span className="text-destructive ml-1">*</span>}
-                  </Label>
-                  <SignaturePad onSignatureChange={setSignature} />
-                  {isSignatureRequired && !signature && (
-                    <p className="text-xs text-destructive">{uiText.transactions.signatureRequired}</p>
-                  )}
-                </div>
-              )}
-
-              <div className="pt-4 flex justify-end">
-                <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitDisabled || isSubmitting}>
-                  {isSubmitting ? uiText.common.loading : uiText.transactions.saveTx}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
       </div>
 
       {successMessage && (
-        <div className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-sm p-3 rounded-md">
+        <div className="bg-success/15 text-success text-sm p-3 rounded-md">
           {successMessage}
         </div>
       )}
 
-      {fetchError && (
+      {formError && (
         <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">
-          {fetchError}
+          {formError}
         </div>
       )}
 
-      <div className="rounded-md border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{uiText.transactions.date}</TableHead>
-              <TableHead>{uiText.transactions.item}</TableHead>
-              <TableHead>{uiText.transactions.type}</TableHead>
-              <TableHead>{uiText.transactions.qty}</TableHead>
-              <TableHead>{uiText.transactions.user}</TableHead>
-              <TableHead>{uiText.transactions.ship}</TableHead>
-              <TableHead>{uiText.transactions.notes}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {transactions.map((tx) => (
-              <TableRow key={tx.id}>
-                <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                  {format(new Date(tx.created_at), 'MMM d, yyyy HH:mm')}
-                </TableCell>
-                <TableCell className="font-medium whitespace-nowrap">
-                  {tx.item_name} <span className="text-xs text-muted-foreground">({tx.item_id})</span>
-                </TableCell>
-                <TableCell>
-                  <Badge variant={tx.type === 'IN' ? 'default' : tx.type === 'OUT' ? 'destructive' : 'secondary'}>
-                    {tx.type}
-                  </Badge>
-                </TableCell>
-                <TableCell className="font-bold">{tx.quantity}</TableCell>
-                <TableCell>{tx.user_name || '-'}</TableCell>
-                <TableCell>{tx.ship_name || '-'}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">{tx.notes || '-'}</TableCell>
-              </TableRow>
-            ))}
-            {transactions.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                  {fetchError ? uiText.common.noData : uiText.transactions.noDataDesc}
-                </TableCell>
-              </TableRow>
+      <Dialog open={open} onOpenChange={(isOpen) => { setOpen(isOpen); if (!isOpen) setFormError(''); }}>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label>{uiText.transactions.item}</Label>
+            <Select value={formData.item_id} onValueChange={v => setFormData({ ...formData, item_id: v })}>
+              <SelectTrigger><SelectValue placeholder={uiText.transactions.selectItem} /></SelectTrigger>
+              <SelectContent>
+                {items.map(item => (
+                  <SelectItem key={item.id} value={item.id}>
+                    {item.name} ({item.id})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>{uiText.transactions.type}</Label>
+            <Select value={formData.type} onValueChange={v => setFormData({ ...formData, type: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="IN">{uiText.transactions.stockIn}</SelectItem>
+                <SelectItem value="OUT">{uiText.transactions.stockOut}</SelectItem>
+                <SelectItem value="EXCHANGE">{uiText.transactions.exchange}</SelectItem>
+                <SelectItem value="ADJUSTMENT">{uiText.transactions.adjustment}</SelectItem>
+                <SelectItem value="DIRECT_EDIT">{uiText.transactions.directEdit}</SelectItem>
+              </SelectContent>
+              <p className="text-xs text-muted-foreground">{transactionTypeHint}</p>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>{quantityLabel}</Label>
+            <Input type="number" step="0.01" required value={formData.quantity} onChange={e => setFormData({ ...formData, quantity: e.target.value })} />
+            {quantityHint && <p className="text-xs text-muted-foreground">{quantityHint}</p>}
+          </div>
+          {showUserField && (
+            <div className="space-y-2">
+              <Label>{uiText.transactions.user}</Label>
+              <Input value={formData.user_name} onChange={e => setFormData({ ...formData, user_name: e.target.value })} placeholder={uiText.transactions.userPlaceholder} />
+            </div>
+          )}
+          {showShipField && (
+            <div className="space-y-2">
+              <Label>
+                {uiText.transactions.ship}
+                {isShipRequired && <span className="text-destructive ml-1">*</span>}
+              </Label>
+              <Input required={isShipRequired} value={formData.ship_name} onChange={e => setFormData({ ...formData, ship_name: e.target.value })} />
+            </div>
+          )}
+          <div className="space-y-2">
+            <Label>{uiText.transactions.notes}</Label>
+            <Input value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} />
+          </div>
+
+          <div className="space-y-2">
+            <Label>
+              {uiText.transactions.photo}
+              {isPhotoRequired && <span className="text-destructive ml-1">*</span>}
+            </Label>
+            <Input type="file" multiple accept="image/*" onChange={handlePhotoChange} />
+            {isPhotoRequired && photos.length === 0 && (
+              <p className="text-xs text-destructive">{uiText.transactions.photoRequired}</p>
             )}
-          </TableBody>
-        </Table>
-      </div>
+            {!isPhotoRequired && isPhotoOptional && (
+              <p className="text-xs text-muted-foreground">{uiText.transactions.photoOptional}</p>
+            )}
+          </div>
+
+          {showSignatureField && (
+            <div className="space-y-2">
+              <Label>
+                {uiText.transactions.signature}
+                {isSignatureRequired && <span className="text-destructive ml-1">*</span>}
+              </Label>
+              <SignaturePad onSignatureChange={setSignature} />
+              {isSignatureRequired && !signature && (
+                <p className="text-xs text-destructive">{uiText.transactions.signatureRequired}</p>
+              )}
+            </div>
+          )}
+
+          <div className="pt-4 flex justify-end">
+            <Button type="submit" disabled={isSubmitDisabled}>
+              {isSubmitting ? 'Saving...' : 'Submit'}
+            </Button>
+          </div>
+        </form>
+      </Dialog>
     </div>
   );
 }
