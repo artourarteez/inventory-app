@@ -1,5 +1,7 @@
-import * as dotenv from 'dotenv';
-dotenv.config();
+import 'dotenv/config';
+console.log("ENV CHECK");
+console.log("TURSO_URL:", process.env.TURSO_URL);
+console.log("TOKEN:", process.env.TURSO_AUTH_TOKEN ? "ADA" : "TIDAK");
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import { createClient } from '@libsql/client';
@@ -8,9 +10,9 @@ import { fileURLToPath } from 'url';
 import PDFDocument from 'pdfkit';
 import fs from 'fs';
 import jwt from 'jsonwebtoken';
-import { generatePdf } from './src/pdf/generatePdf';
-import { paintUsageTemplate } from './src/pdf/paintUsageTemplate';
-import { stockTemplate } from './src/pdf/stockTemplate';
+import { generatePdf } from './src/pdf/generatePdf.js';
+import { paintUsageTemplate } from './src/pdf/paintUsageTemplate.js';
+import { stockTemplate } from './src/pdf/stockTemplate.js';
 import cookieParser from 'cookie-parser';
 import bcrypt from 'bcrypt';
 
@@ -35,6 +37,7 @@ function resolvePhotoUrls(jsonStr: string | null): string[] | null {
   } catch {}
   return null;
 }
+
 const tursoUrl = (process.env.TURSO_URL || '').trim();
 const tursoToken = (process.env.TURSO_AUTH_TOKEN || '').trim();
 
