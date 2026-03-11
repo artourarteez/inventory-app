@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      TURSO_URL: "libsql://inventory-rteezy.aws-ap-northeast-1.turso.io"
+      TURSO_AUTH_TOKEN: "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzMyMzU1NzksImlkIjoiMDE5Y2NkNWYtYWMwMS03ZDc4LTliNmQtYzI5ZjU5MjVmNDRmIiwicmlkIjoiNzM3MTNmN2UtYzJmNC00ZWVlLTgzNDktNmNhYWQwMWY1YjE4In0.3iF8VdEf293ry2Bw-lzWoD7BvbiRtL-HfaCix3OMRU_EwMD51fDqOfgV5A17_QfB1BTqVN-MTiLFZ_D8s6enDw"
+      BASE_URL: "http://localhost:3000"
+      NODE_ENV: "production"

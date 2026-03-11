@@ -1,7 +1,4 @@
 import 'dotenv/config';
-console.log("ENV CHECK");
-console.log("TURSO_URL:", process.env.TURSO_URL);
-console.log("TOKEN:", process.env.TURSO_AUTH_TOKEN ? "ADA" : "TIDAK");
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import { createClient } from '@libsql/client';
@@ -38,17 +35,7 @@ function resolvePhotoUrls(jsonStr: string | null): string[] | null {
   return null;
 }
 
-const tursoUrl = (process.env.TURSO_URL || '').trim();
-const tursoToken = (process.env.TURSO_AUTH_TOKEN || '').trim();
-
-if (!tursoUrl || !tursoToken) {
-  throw new Error('Missing required Turso environment variables: TURSO_URL and/or TURSO_AUTH_TOKEN');
-}
-
-const db = createClient({
-  url: tursoUrl,
-  authToken: tursoToken,
-});
+let db: ReturnType<typeof createClient>;
 
 type QueryParams = any[];
 type WriteStatement = { sql: string; args?: QueryParams };
@@ -192,11 +179,26 @@ async function initializeDatabase() {
 }
 
 async function startServer() {
+  const tursoUrl = (process.env.TURSO_URL || '').trim();
+  const tursoToken = (process.env.TURSO_AUTH_TOKEN || '').trim();
+
+  if (!tursoUrl || !tursoToken) {
+    console.error('[db.init] Missing required Turso environment variables:');
+    console.error('  TURSO_URL:', tursoUrl ? '(set)' : '(missing)');
+    console.error('  TURSO_AUTH_TOKEN:', tursoToken ? '(set)' : '(missing)');
+    throw new Error('Missing required Turso environment variables: TURSO_URL and/or TURSO_AUTH_TOKEN');
+  }
+
+  db = createClient({
+    url: tursoUrl,
+    authToken: tursoToken,
+  });
+
   try {
     await execute('SELECT 1 AS ok');
     console.log('[db.init] Turso connectivity check passed');
   } catch (error) {
-    console.error('[db.init] Turso connectivity check failed. Verify TURSO_URL and TURSO_AUTH_TOKEN in .env');
+    console.error('[db.init] Turso connectivity check failed. Verify TURSO_URL and TURSO_AUTH_TOKEN');
     throw error;
   }
 
