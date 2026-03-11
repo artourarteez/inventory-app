@@ -8,9 +8,9 @@ import { fileURLToPath } from 'url';
 import PDFDocument from 'pdfkit';
 import fs from 'fs';
 import jwt from 'jsonwebtoken';
-import { generatePdf } from './src/pdf/generatePdf.js';
-import { paintUsageTemplate } from './src/pdf/paintUsageTemplate.js';
-import { stockTemplate } from './src/pdf/stockTemplate.js';
+import { generatePdf } from './src/pdf/generatePdf';
+import { paintUsageTemplate } from './src/pdf/paintUsageTemplate';
+import { stockTemplate } from './src/pdf/stockTemplate';
 import cookieParser from 'cookie-parser';
 import bcrypt from 'bcrypt';
 
