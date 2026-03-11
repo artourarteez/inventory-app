@@ -77,8 +77,25 @@
   * {
     border-color: var(--border);
   }
+  html {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
   body {
     background-color: var(--background);
     color: var(--foreground);
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+  /* Optimize scroll containers for mobile */
+  .scroll-optimized {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    will-change: scroll-position;
+    transform: translateZ(0);
+  }
+  /* Prevent layout thrashing on scroll */
+  .contain-layout {
+    contain: layout style;
   }
 }

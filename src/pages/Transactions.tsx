@@ -1,14 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import axios from 'axios';
-import { format } from 'date-fns';
-import { uiText } from '@/lib/uiText';
+import { uiText, categoryLabel } from '@/lib/uiText';
+import SearchableCombobox from '@/components/SearchableCombobox';
+
+const fieldClass = 'w-full px-3 py-2 text-sm border rounded-lg border-neutral-700 bg-neutral-900 text-white focus:ring-2 focus:ring-blue-500';
+const selectClass = 'appearance-none w-full px-3 py-2 text-sm border rounded-lg border-neutral-700 bg-neutral-900 text-white focus:outline-none focus:ring-2 focus:ring-blue-500';
+const labelClass = 'block text-sm font-medium text-neutral-700 dark:text-neutral-300';
+const buttonPrimaryClass = 'px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60';
+const buttonSecondaryClass = 'px-4 py-2 text-sm font-medium border rounded-lg border-neutral-700 bg-neutral-900 text-white hover:bg-neutral-800';
 
 function SignaturePad({ onSignatureChange }: { onSignatureChange: (dataUrl: string | null) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -93,7 +92,7 @@ function SignaturePad({ onSignatureChange }: { onSignatureChange: (dataUrl: stri
           ref={canvasRef}
           width={400}
           height={200}
-          className="w-full h-[200px] cursor-crosshair"
+          className="w-full h-50 cursor-crosshair"
           onMouseDown={startDrawing}
           onMouseMove={draw}
           onMouseUp={stopDrawing}
@@ -103,9 +102,13 @@ function SignaturePad({ onSignatureChange }: { onSignatureChange: (dataUrl: stri
           onTouchEnd={stopDrawing}
         />
       </div>
-      <Button type="button" variant="outline" size="sm" onClick={clear}>
+      <button
+        type="button"
+        onClick={clear}
+        className="inline-flex items-center rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+      >
         {uiText.transactions.clearSignature}
-      </Button>
+      </button>
     </div>
   );
 }
@@ -128,6 +131,7 @@ export default function Transactions() {
   const [formError, setFormError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [fetchError, setFetchError] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -147,27 +151,31 @@ export default function Transactions() {
     }
   };
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-    
-    const newPhotos: string[] = [];
-    Array.from(files).forEach(file => {
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = (ev) => {
-        if (ev.target?.result) {
-          newPhotos.push(ev.target.result as string);
-          if (newPhotos.length === files.length) {
-            setPhotos(newPhotos);
-          }
-        }
-      };
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
       reader.readAsDataURL(file);
     });
   };
 
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    try {
+      const base64Photos = await Promise.all(
+        Array.from(files).map(file => fileToBase64(file))
+      );
+      setPhotos(base64Photos);
+    } catch {
+      setFormError(uiText.common.error);
+    }
+  };
+
   const selectedItem = items.find(i => i.id === formData.item_id);
-  const selectedCategory = selectedItem?.category;
+  const selectedItemCategory = selectedItem?.category;
 
   const isIn = formData.type === 'IN';
   const isOut = formData.type === 'OUT';
@@ -175,13 +183,19 @@ export default function Transactions() {
   const isAdjustment = formData.type === 'ADJUSTMENT';
   const isDirectEdit = formData.type === 'DIRECT_EDIT';
 
-  const showUserField = (selectedCategory === 'CYLINDER' || selectedCategory === 'STEEL') && (isOut || isExchange);
-  const showShipField = (selectedCategory === 'PAINT' && (isIn || isOut)) || (selectedCategory === 'STEEL' && isOut);
-  const isShipRequired = (selectedCategory === 'PAINT' || selectedCategory === 'STEEL') && isOut;
-  const showSignatureField = selectedCategory === 'CYLINDER' && (isOut || isExchange);
+  const showUserField = (selectedItemCategory === 'CYLINDER' || selectedItemCategory === 'STEEL') && (isOut || isExchange);
+  const showShipField = (selectedItemCategory === 'PAINT' && (isIn || isOut)) || (selectedItemCategory === 'STEEL' && isOut);
+  const isShipRequired = (selectedItemCategory === 'PAINT' || selectedItemCategory === 'STEEL') && isOut;
+  const showSignatureField = selectedItemCategory === 'CYLINDER' && (isOut || isExchange);
   const isSignatureRequired = showSignatureField;
-  const isPhotoRequired = selectedCategory === 'CYLINDER' && (isOut || isExchange);
-  const isPhotoOptional = selectedCategory === 'STEEL' || selectedCategory === 'PAINT' || isAdjustment;
+  const isPhotoRequired = selectedItemCategory === 'CYLINDER' && (isOut || isExchange);
+  const isPhotoOptional = selectedItemCategory === 'STEEL' || selectedItemCategory === 'PAINT' || isAdjustment;
+
+  const filteredItems = items.filter(item => {
+    if (categoryFilter && item.category !== categoryFilter) return false;
+    if (item.category === 'PAINT' && item.part_type === 'B') return false;
+    return true;
+  });
 
   const transactionTypeHint = uiText.transactions.typeHints[
     formData.type as keyof typeof uiText.transactions.typeHints
@@ -233,8 +247,8 @@ export default function Transactions() {
         notes: formData.notes,
         user_name: formData.user_name || null,
         ship_name: formData.ship_name || null,
-        photo_url: photos.length > 0 ? photos[0] : null,
-        signature_url: signature
+        photos: photos.length > 0 ? photos : [],
+        signature: signature
       });
       setOpen(false);
       fetchData();
@@ -253,13 +267,22 @@ export default function Transactions() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">{uiText.transactions.title}</h2>
-          <p className="text-muted-foreground">{uiText.transactions.desc}</p>
+          <p className="text-muted-foreground text-sm">{uiText.transactions.desc}</p>
         </div>
+        <button type="button" onClick={() => setOpen(true)} className={buttonPrimaryClass}>
+          {uiText.transactions.newTx}
+        </button>
       </div>
+
+      {fetchError && (
+        <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">
+          {fetchError}
+        </div>
+      )}
 
       {successMessage && (
         <div className="bg-success/15 text-success text-sm p-3 rounded-md">
@@ -273,66 +296,112 @@ export default function Transactions() {
         </div>
       )}
 
-      <Dialog open={open} onOpenChange={(isOpen) => { setOpen(isOpen); if (!isOpen) setFormError(''); }}>
-        <form onSubmit={handleSubmit} className="space-y-4">
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 overflow-y-auto pt-20" onClick={() => { setOpen(false); setFormError(''); }}>
+          <div className="w-full max-w-2xl my-4 rounded-xl border border-neutral-200 bg-white p-5 shadow-xl dark:border-neutral-700 dark:bg-neutral-900 max-h-[calc(100vh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <h3 className="mb-4 text-lg font-semibold text-neutral-800 dark:text-neutral-100">{uiText.transactions.newTx}</h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label>{uiText.transactions.item}</Label>
-            <Select value={formData.item_id} onValueChange={v => setFormData({ ...formData, item_id: v })}>
-              <SelectTrigger><SelectValue placeholder={uiText.transactions.selectItem} /></SelectTrigger>
-              <SelectContent>
-                {items.map(item => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.name} ({item.id})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <label className={labelClass}>Kategori Barang</label>
+            <div className="relative w-full">
+              <select
+                value={categoryFilter}
+                onChange={e => { setCategoryFilter(e.target.value); setFormData(prev => ({ ...prev, item_id: '' })); }}
+                aria-label="Kategori Barang"
+                className={selectClass}
+              >
+                <option value="">Semua Kategori</option>
+                <option value="CYLINDER">{categoryLabel.CYLINDER}</option>
+                <option value="STEEL">{categoryLabel.STEEL}</option>
+                <option value="PAINT">{categoryLabel.PAINT}</option>
+              </select>
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-neutral-400">▼</span>
+            </div>
           </div>
           <div className="space-y-2">
-            <Label>{uiText.transactions.type}</Label>
-            <Select value={formData.type} onValueChange={v => setFormData({ ...formData, type: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="IN">{uiText.transactions.stockIn}</SelectItem>
-                <SelectItem value="OUT">{uiText.transactions.stockOut}</SelectItem>
-                <SelectItem value="EXCHANGE">{uiText.transactions.exchange}</SelectItem>
-                <SelectItem value="ADJUSTMENT">{uiText.transactions.adjustment}</SelectItem>
-                <SelectItem value="DIRECT_EDIT">{uiText.transactions.directEdit}</SelectItem>
-              </SelectContent>
-              <p className="text-xs text-muted-foreground">{transactionTypeHint}</p>
-            </Select>
+            <label className={labelClass}>{uiText.transactions.item}</label>
+            <SearchableCombobox
+              items={filteredItems.map(item => ({ id: item.id, name: item.name }))}
+              selectedId={formData.item_id}
+              onChange={id => setFormData({ ...formData, item_id: id })}
+              placeholder="Cari barang..."
+            />
           </div>
           <div className="space-y-2">
-            <Label>{quantityLabel}</Label>
-            <Input type="number" step="0.01" required value={formData.quantity} onChange={e => setFormData({ ...formData, quantity: e.target.value })} />
+            <label className={labelClass}>{uiText.transactions.type}</label>
+            <div className="relative w-full">
+              <select
+                value={formData.type}
+                onChange={e => setFormData({ ...formData, type: e.target.value })}
+                aria-label={uiText.transactions.type}
+                className={selectClass}
+              >
+                <option value="IN">{uiText.transactions.stockIn}</option>
+                <option value="OUT">{uiText.transactions.stockOut}</option>
+                <option value="EXCHANGE">{uiText.transactions.exchange}</option>
+                <option value="ADJUSTMENT">{uiText.transactions.adjustment}</option>
+                <option value="DIRECT_EDIT">{uiText.transactions.directEdit}</option>
+              </select>
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-neutral-400">▼</span>
+            </div>
+            <p className="text-xs text-muted-foreground">{transactionTypeHint}</p>
+          </div>
+          <div className="space-y-2">
+            <label className={labelClass}>{quantityLabel}</label>
+            <input
+              type="number"
+              step="0.01"
+              required
+              value={formData.quantity}
+              onChange={e => setFormData({ ...formData, quantity: e.target.value })}
+              aria-label={quantityLabel}
+              className={fieldClass}
+            />
             {quantityHint && <p className="text-xs text-muted-foreground">{quantityHint}</p>}
           </div>
           {showUserField && (
             <div className="space-y-2">
-              <Label>{uiText.transactions.user}</Label>
-              <Input value={formData.user_name} onChange={e => setFormData({ ...formData, user_name: e.target.value })} placeholder={uiText.transactions.userPlaceholder} />
+              <label className={labelClass}>{uiText.transactions.user}</label>
+              <input
+                value={formData.user_name}
+                onChange={e => setFormData({ ...formData, user_name: e.target.value })}
+                placeholder={uiText.transactions.userPlaceholder}
+                aria-label={uiText.transactions.user}
+                className={fieldClass}
+              />
             </div>
           )}
           {showShipField && (
             <div className="space-y-2">
-              <Label>
+              <label className={labelClass}>
                 {uiText.transactions.ship}
                 {isShipRequired && <span className="text-destructive ml-1">*</span>}
-              </Label>
-              <Input required={isShipRequired} value={formData.ship_name} onChange={e => setFormData({ ...formData, ship_name: e.target.value })} />
+              </label>
+              <input
+                required={isShipRequired}
+                value={formData.ship_name}
+                onChange={e => setFormData({ ...formData, ship_name: e.target.value })}
+                aria-label={uiText.transactions.ship}
+                className={fieldClass}
+              />
             </div>
           )}
           <div className="space-y-2">
-            <Label>{uiText.transactions.notes}</Label>
-            <Input value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} />
+            <label className={labelClass}>{uiText.transactions.notes}</label>
+            <input
+              value={formData.notes}
+              onChange={e => setFormData({ ...formData, notes: e.target.value })}
+              aria-label={uiText.transactions.notes}
+              className={fieldClass}
+            />
           </div>
 
           <div className="space-y-2">
-            <Label>
+            <label className={labelClass}>
               {uiText.transactions.photo}
               {isPhotoRequired && <span className="text-destructive ml-1">*</span>}
-            </Label>
-            <Input type="file" multiple accept="image/*" onChange={handlePhotoChange} />
+            </label>
+            <input type="file" multiple accept="image/*" onChange={handlePhotoChange} aria-label={uiText.transactions.photo} className={fieldClass} />
             {isPhotoRequired && photos.length === 0 && (
               <p className="text-xs text-destructive">{uiText.transactions.photoRequired}</p>
             )}
@@ -343,10 +412,10 @@ export default function Transactions() {
 
           {showSignatureField && (
             <div className="space-y-2">
-              <Label>
+              <label className={labelClass}>
                 {uiText.transactions.signature}
                 {isSignatureRequired && <span className="text-destructive ml-1">*</span>}
-              </Label>
+              </label>
               <SignaturePad onSignatureChange={setSignature} />
               {isSignatureRequired && !signature && (
                 <p className="text-xs text-destructive">{uiText.transactions.signatureRequired}</p>
@@ -354,13 +423,98 @@ export default function Transactions() {
             </div>
           )}
 
-          <div className="pt-4 flex justify-end">
-            <Button type="submit" disabled={isSubmitDisabled}>
-              {isSubmitting ? 'Saving...' : 'Submit'}
-            </Button>
+          <div className="pt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => { setOpen(false); setFormError(''); }}
+              className={buttonSecondaryClass}
+            >
+              {uiText.common.cancel}
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitDisabled}
+              className={buttonPrimaryClass}
+            >
+              {isSubmitting ? uiText.common.loading : uiText.common.save}
+            </button>
           </div>
-        </form>
-      </Dialog>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-md border border-neutral-800 bg-card">
+        {/* Desktop Table */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="text-xs uppercase text-neutral-400 border-b border-neutral-700">
+              <tr>
+                <th className="px-3 py-2 text-left">Tanggal</th>
+                <th className="px-3 py-2 text-left">Item</th>
+                <th className="px-3 py-2 text-left">Kategori</th>
+                <th className="px-3 py-2 text-left">Tipe</th>
+                <th className="px-3 py-2 text-left">Jumlah</th>
+                <th className="px-3 py-2 text-left">Kapal</th>
+              </tr>
+            </thead>
+            <tbody>
+              {transactions.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-3 py-8 text-center text-neutral-400">
+                    {uiText.common.noData}
+                  </td>
+                </tr>
+              ) : (
+                transactions.map((tx, idx) => (
+                  <tr key={tx.id ?? idx} className="border-b border-neutral-800">
+                    <td className="px-3 py-2">{tx.created_at ? new Date(tx.created_at).toLocaleDateString() : '-'}</td>
+                    <td className="px-3 py-2">{tx.item_name}</td>
+                    <td className="px-3 py-2">{categoryLabel[tx.category as keyof typeof categoryLabel] || tx.category || '-'}</td>
+                    <td className="px-3 py-2">{tx.type}</td>
+                    <td className="px-3 py-2">{tx.quantity}</td>
+                    <td className="px-3 py-2">{tx.ship_name || '-'}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="md:hidden">
+          {transactions.length === 0 ? (
+            <div className="px-3 py-8 text-center text-neutral-400">
+              {uiText.common.noData}
+            </div>
+          ) : (
+            <div className="divide-y divide-neutral-800">
+              {transactions.map((tx, idx) => (
+                <div key={tx.id ?? idx} className="p-3 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-sm text-neutral-200">{tx.item_name}</span>
+                    <span className={`inline-flex rounded px-2 py-0.5 text-xs font-medium ${
+                      tx.type === 'IN' ? 'bg-green-900/30 text-green-300' : 
+                      tx.type === 'OUT' ? 'bg-red-900/30 text-red-300' : 
+                      'bg-neutral-700 text-neutral-200'
+                    }`}>
+                      {tx.type}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-neutral-400">
+                    <span>{categoryLabel[tx.category as keyof typeof categoryLabel] || tx.category || '-'}</span>
+                    <span className="font-bold text-neutral-200">{tx.quantity}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-neutral-400">
+                    <span>{tx.created_at ? new Date(tx.created_at).toLocaleDateString() : '-'}</span>
+                    <span>{tx.ship_name || '-'}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

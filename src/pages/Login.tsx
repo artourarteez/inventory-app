@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { uiText } from '@/lib/uiText';
 import { useAuth } from '@/components/auth-provider';
 import { Package } from 'lucide-react';
+
+const fieldClass = 'w-full px-3 py-2 text-sm border rounded-lg border-neutral-700 bg-neutral-900 text-white focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60';
+const buttonPrimaryClass = 'inline-flex w-full items-center justify-center px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60';
 
 export default function Login() {
   const [usernameOrEmail, setUsernameOrEmail] = useState('');
@@ -54,30 +54,36 @@ export default function Login() {
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="username">{uiText.auth.usernameOrEmail}</Label>
-              <Input
+              <label htmlFor="username" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">{uiText.auth.usernameOrEmail}</label>
+              <input
                 id="username"
                 type="text"
                 required
                 value={usernameOrEmail}
                 onChange={(e) => setUsernameOrEmail(e.target.value)}
                 disabled={isLoading}
+                className={fieldClass}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">{uiText.auth.password}</Label>
-              <Input
+              <label htmlFor="password" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">{uiText.auth.password}</label>
+              <input
                 id="password"
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
+                className={fieldClass}
               />
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <button
+              type="submit"
+              className={buttonPrimaryClass}
+              disabled={isLoading}
+            >
               {isLoading ? uiText.common.loading : uiText.auth.login}
-            </Button>
+            </button>
           </form>
         </div>
       </div>

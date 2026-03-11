@@ -10,6 +10,8 @@ export const uiText = {
     error: "Terjadi kesalahan",
     noData: "Tidak ada data ditemukan.",
     comingSoon: "Segera Hadir",
+    search: "Cari",
+    reset: "Reset",
   },
   auth: {
     login: "Masuk",
@@ -31,6 +33,20 @@ export const uiText = {
     desc: "Ringkasan tingkat stok saat ini.",
     fetchError: "Gagal memuat data inventaris. Silakan muat ulang halaman.",
     noDataDesc: "Belum ada barang dalam inventaris.",
+    searchPlaceholder: "Cari barang...",
+  },
+  profile: {
+    title: "Profil",
+    desc: "Kelola akun dan kata sandi Anda.",
+    accountInfo: "Informasi Akun",
+    changePassword: "Ganti Kata Sandi",
+    oldPassword: "Kata Sandi Lama",
+    newPassword: "Kata Sandi Baru",
+    confirmPassword: "Konfirmasi Kata Sandi Baru",
+    savePassword: "Simpan Kata Sandi",
+    changePasswordSuccess: "Kata sandi berhasil diperbarui.",
+    passwordMismatch: "Konfirmasi kata sandi tidak cocok.",
+    passwordTooShort: "Kata sandi baru minimal 6 karakter.",
   },
   items: {
     title: "Master Barang",
@@ -150,4 +166,26 @@ export const uiText = {
     dark: "Gelap",
     system: "Sistem",
   }
+};
+
+export const categoryLabel: Record<string, string> = {
+  CYLINDER: "TABUNG",
+  PAINT: "CAT",
+  STEEL: "BESI",
+};
+
+export const txTypeLabel: Record<string, string> = {
+  IN: "Stok Masuk",
+  OUT: "Stok Keluar",
+  EXCHANGE: "Tukar",
+  ADJUSTMENT: "Penyesuaian",
+  DIRECT_EDIT: "Set Stok Awal",
+};
+
+export const statusLabel: Record<string, string> = {
+  normal: "Normal",
+  damaged: "Rusak",
+  IN_STOCK: "IN STOCK",
+  LOW_STOCK: "LOW STOCK",
+  OUT_OF_STOCK: "OUT OF STOCK",
 };
