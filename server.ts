@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import { config as loadEnv } from 'dotenv';
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import { createClient } from '@libsql/client';
@@ -179,6 +179,9 @@ async function initializeDatabase() {
 }
 
 async function startServer() {
+  // Load .env file for local development; on Railway the vars come from the platform directly.
+  loadEnv({ override: false });
+
   const tursoUrl = (process.env.TURSO_URL || '').trim();
   const tursoToken = (process.env.TURSO_AUTH_TOKEN || '').trim();
 
