@@ -2,6 +2,8 @@ import puppeteer from "puppeteer-core";
 
 export async function generatePdf(html) {
 
+  const isLinux = process.platform === "linux";
+
   const isProduction = process.env.NODE_ENV === "production";
 
   const browser = await puppeteer.launch({
