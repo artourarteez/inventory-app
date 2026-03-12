@@ -1092,22 +1092,29 @@ async function startServer() {
       );
 
       const grouped = {
-        STEEL: items.filter((i: any) => i.category === 'STEEL'),
-        CYLINDER: items.filter((i: any) => i.category === 'CYLINDER'),
-        PAINT: items.filter((i: any) => i.category === 'PAINT'),
-      };
+            STEEL: items.filter((i: any) => i.category === 'STEEL'),
+            CYLINDER: items.filter((i: any) => i.category === 'CYLINDER'),
+            PAINT: items.filter((i: any) => i.category === 'PAINT'),
+          };
 
-      const generatedDate = new Date().toLocaleDateString();
-      const html = stockTemplate(grouped, generatedDate);
-      const pdf = await generatePdf(html);
+          const generatedDate = new Date().toLocaleDateString();
+          const html = stockTemplate(grouped, generatedDate);
 
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', 'attachment; filename=stock-report.pdf');
-      res.send(pdf);
-    } catch (error: any) {
-      return res.status(500).json({ error: error.message || 'Failed to generate stock report PDF' });
-    }
-  });
+          const pdf = await generatePdf(html);
+
+          const buffer = Buffer.from(pdf);
+
+          res.setHeader("Content-Type", "application/pdf");
+          res.setHeader("Content-Disposition", "attachment; filename=stock-report.pdf");
+          res.setHeader("Content-Length", buffer.length);
+          res.setHeader("Cache-Control", "no-store");
+
+          res.end(buffer);
+
+        } catch (error: any) {
+          res.status(500).json({ error: error.message });
+        }
+      });
 
 
 
