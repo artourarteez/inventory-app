@@ -1,3 +1,9 @@
+const categoryLabels: Record<string, string> = {
+  STEEL: 'BESI',
+  CYLINDER: 'TABUNG',
+  PAINT: 'CAT',
+};
+
 function displayUnit(item: any): string {
   if (item.category !== 'PAINT') {
     return item.stock_unit || '-';
@@ -7,51 +13,20 @@ function displayUnit(item: any): string {
   return 'Kaleng';
 }
 
-export function stockTemplate(items: any[], generatedDate: string): string {
-  const categories = ['STEEL', 'CYLINDER', 'PAINT'];
-
-  const grouped: Record<string, any[]> = {};
-  for (const cat of categories) {
-    grouped[cat] = items.filter((item) => item.category === cat);
-  }
-
-  const lowStockItems = items.filter(
-    (item) => item.current_stock > 0 && item.current_stock <= 3
-  );
-
-  const lowStockSection = lowStockItems.length > 0
-    ? `
-    <div class="low-stock">
-      <div class="low-stock-title">LOW STOCK WARNING</div>
-      <table>
-        <colgroup>
-          <col style="width:65%">
-          <col style="width:15%">
-          <col style="width:20%">
-        </colgroup>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th class="stock">Stock</th>
-            <th>Unit</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${lowStockItems.map((item) => `
-          <tr>
-            <td>${escapeHtml(String(item.name || '-'))}</td>
-            <td class="stock">${Number(item.current_stock || 0)}</td>
-            <td>${escapeHtml(displayUnit(item))}</td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>`
-    : '';
+export function stockTemplate(
+  grouped: Record<string, any[]>,
+  generatedDate: string
+): string {
+  const categories = ['STEEL', 'CYLINDER', 'PAINT'] as const;
 
   const sections = categories
-    .filter((cat) => grouped[cat].length > 0)
+    .filter((cat) => grouped[cat] && grouped[cat].length > 0)
     .map((cat) => {
-      const rows = grouped[cat]
+      const items = grouped[cat];
+      const label = categoryLabels[cat] || cat;
+      const itemCount = items.length;
+
+      const rows = items
         .map(
           (item) => `
         <tr>
@@ -63,7 +38,7 @@ export function stockTemplate(items: any[], generatedDate: string): string {
         .join('');
 
       return `
-    <div class="section-title">${escapeHtml(cat)}</div>
+    <div class="section-title">${escapeHtml(label)}</div>
     <table>
       <colgroup>
         <col style="width:70%">
@@ -72,7 +47,7 @@ export function stockTemplate(items: any[], generatedDate: string): string {
       </colgroup>
       <thead>
         <tr>
-          <th>Name</th>
+          <th>Item</th>
           <th class="stock">Stock</th>
           <th>Unit</th>
         </tr>
@@ -80,7 +55,8 @@ export function stockTemplate(items: any[], generatedDate: string): string {
       <tbody>
         ${rows}
       </tbody>
-    </table>`;
+    </table>
+    <div class="subtotal">Jumlah Jenis ${escapeHtml(label)}: ${itemCount} item</div>`;
     })
     .join('');
 
@@ -111,7 +87,7 @@ export function stockTemplate(items: any[], generatedDate: string): string {
       width: 100%;
       border-collapse: collapse;
       table-layout: fixed;
-      margin-bottom: 25px;
+      margin-bottom: 10px;
     }
     th {
       text-align: left;
@@ -126,19 +102,6 @@ export function stockTemplate(items: any[], generatedDate: string): string {
     .stock {
       text-align: center;
     }
-    .low-stock-title {
-      font-weight: bold;
-      font-size: 13px;
-      margin-top: 10px;
-      margin-bottom: 8px;
-      color: #b00020;
-    }
-    .low-stock {
-      border: 1px solid #e0e0e0;
-      padding: 12px;
-      margin-bottom: 30px;
-      background: #fff8f8;
-    }
     .section-title {
       margin-top: 35px;
       margin-bottom: 8px;
@@ -146,14 +109,17 @@ export function stockTemplate(items: any[], generatedDate: string): string {
       letter-spacing: 0.5px;
       font-size: 13px;
     }
+    .subtotal {
+      font-weight: bold;
+      margin-bottom: 25px;
+      font-size: 12px;
+    }
   </style>
 </head>
 <body>
-  <h1>PT. NDS</h1>
-  <h2>Final Stock Report</h2>
-  <p class="report-date">Report Period: ${escapeHtml(generatedDate)}</p>
-
-  ${lowStockSection}
+  <h1>PT NDS</h1>
+  <h2>Laporan Stok Gudang</h2>
+  <p class="report-date">Generated: ${escapeHtml(generatedDate)}</p>
 
   ${sections}
 </body>

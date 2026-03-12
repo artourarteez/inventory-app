@@ -1078,11 +1078,27 @@ async function startServer() {
   app.get('/api/reports/stock-pdf', requireAuth, async (_req, res) => {
     try {
       const items = await queryAll<any>(
-        `SELECT name, category, current_stock, stock_unit, volume_per_can FROM items ORDER BY CASE category WHEN 'STEEL' THEN 1 WHEN 'CYLINDER' THEN 2 WHEN 'PAINT' THEN 3 END, name ASC`
+        `SELECT name, category, current_stock, stock_unit, volume_per_can
+         FROM items
+         WHERE current_stock > 0
+           AND (part_type IS NULL OR part_type != 'B')
+         ORDER BY
+           CASE category
+             WHEN 'STEEL' THEN 1
+             WHEN 'CYLINDER' THEN 2
+             WHEN 'PAINT' THEN 3
+           END,
+           name ASC`
       );
 
+      const grouped = {
+        STEEL: items.filter((i: any) => i.category === 'STEEL'),
+        CYLINDER: items.filter((i: any) => i.category === 'CYLINDER'),
+        PAINT: items.filter((i: any) => i.category === 'PAINT'),
+      };
+
       const generatedDate = new Date().toLocaleDateString();
-      const html = stockTemplate(items, generatedDate);
+      const html = stockTemplate(grouped, generatedDate);
       const pdf = await generatePdf(html);
 
       res.setHeader('Content-Type', 'application/pdf');
