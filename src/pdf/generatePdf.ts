@@ -7,7 +7,7 @@ export async function generatePdf(html) {
   const isProduction = process.env.NODE_ENV === "production";
 
   const browser = await puppeteer.launch({
-    executablePath: isProduction
+    executablePath: isLinux
       ? "/usr/bin/chromium"
       : "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
     headless: true,
