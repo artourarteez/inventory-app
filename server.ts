@@ -1167,12 +1167,18 @@ async function startServer() {
 
           const buffer = Buffer.from(pdf);
 
-          const filename = category && category !== 'ALL'
-            ? `${category.toLowerCase()}-stock-report.pdf`
-            : 'stock-report.pdf';
+          const now = new Date();
+          const day = now.toLocaleDateString('id-ID', { day: 'numeric' });
+          const month = now.toLocaleDateString('id-ID', { month: 'long' }).toLowerCase();
+          const year = now.getFullYear();
+          const formattedDate = `${day}_${month}_${year}`;
+
+          const categoryNameMap: Record<string, string> = { STEEL: 'besi', CYLINDER: 'tabung', PAINT: 'cat' };
+          const categoryName = (category && category !== 'ALL' && categoryNameMap[category]) || 'gudang';
+          const filename = `stok_${categoryName}_${formattedDate}.pdf`;
 
           res.setHeader("Content-Type", "application/pdf");
-          res.setHeader("Content-Disposition", `attachment; filename=${filename}`);
+          res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
           res.setHeader("Content-Length", buffer.length);
           res.setHeader("Cache-Control", "no-store");
 
