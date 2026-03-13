@@ -384,7 +384,6 @@ export default function Reports() {
                   <option value="OUT">{txTypeLabel.OUT}</option>
                   <option value="EXCHANGE">{txTypeLabel.EXCHANGE}</option>
                   <option value="ADJUSTMENT">{txTypeLabel.ADJUSTMENT}</option>
-                  <option value="DIRECT_EDIT">{txTypeLabel.DIRECT_EDIT}</option>
                 </select>
                 <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-neutral-400">▼</span>
               </div>

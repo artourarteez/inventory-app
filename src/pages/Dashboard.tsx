@@ -118,31 +118,33 @@ export default function Dashboard() {
           {fetchError ? uiText.common.noData : uiText.dashboard.noDataDesc}
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {orderedCategories.map(cat => (
-            <div key={cat}>
-              <h3 className="text-xs font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500 mb-2 px-1">
-                {categoryLabel[cat] || cat}
-              </h3>
+            <div key={cat} className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg overflow-hidden">
+              <div className="px-4 py-3 border-b border-neutral-200 dark:border-neutral-700">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                  {categoryLabel[cat] || cat}
+                </h3>
+              </div>
 
               {/* Desktop Table */}
-              <div className="hidden md:block bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg overflow-x-auto">
-                <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-700">
+              <div className="hidden md:block overflow-x-auto">
+                <table className="min-w-full table-fixed">
                   <thead className="bg-neutral-50 dark:bg-neutral-800">
                     <tr>
-                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">{uiText.items.name}</th>
-                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">{uiText.items.stock}</th>
-                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">{uiText.items.unit}</th>
-                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">{uiText.items.status}</th>
+                      <th className="w-1/2 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">{uiText.items.name}</th>
+                      <th className="w-1/6 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">{uiText.items.stock}</th>
+                      <th className="w-1/6 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">{uiText.items.unit}</th>
+                      <th className="w-1/6 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">{uiText.items.status}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
                     {groupedItems[cat].map(item => (
                       <tr key={item.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
-                        <td className="px-3 py-2 text-sm font-medium text-neutral-800 dark:text-neutral-200">{item.name}</td>
-                        <td className="px-3 py-2 text-sm font-bold text-neutral-800 dark:text-neutral-200">{item.current_stock}</td>
-                        <td className="px-3 py-2 text-sm text-neutral-600 dark:text-neutral-400">{displayUnit(item)}</td>
-                        <td className="px-3 py-2">
+                        <td className="w-1/2 px-3 py-2 text-sm font-medium text-neutral-800 dark:text-neutral-200">{item.name}</td>
+                        <td className="w-1/6 px-3 py-2 text-sm font-bold text-neutral-800 dark:text-neutral-200">{item.current_stock}</td>
+                        <td className="w-1/6 px-3 py-2 text-sm text-neutral-600 dark:text-neutral-400">{displayUnit(item)}</td>
+                        <td className="w-1/6 px-3 py-2">
                           {(() => {
                             const status = (item.category === 'STEEL' || item.category === 'PAINT')
                               ? getStockStatus(item)
@@ -169,16 +171,11 @@ export default function Dashboard() {
               </div>
 
               {/* Mobile Cards */}
-              <div className="md:hidden space-y-2">
+              <div className="md:hidden divide-y divide-neutral-100 dark:divide-neutral-800">
                 {groupedItems[cat].map(item => (
-                  <div key={item.id} className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-medium text-sm text-neutral-800 dark:text-neutral-200">{item.name}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-neutral-500">
-                        {uiText.items.stock}: <span className="font-bold text-neutral-800 dark:text-neutral-200">{item.current_stock}</span> {displayUnit(item)}
-                      </span>
+                  <div key={item.id} className="p-3">
+                    <div className="flex justify-between items-start">
+                      <span className="font-medium text-sm text-neutral-800 dark:text-neutral-200 break-words">{item.name}</span>
                       {(() => {
                         const status = (item.category === 'STEEL' || item.category === 'PAINT')
                           ? getStockStatus(item)
@@ -197,6 +194,9 @@ export default function Dashboard() {
                           </span>
                         );
                       })()}
+                    </div>
+                    <div className="text-sm text-neutral-500 mt-1">
+                      {uiText.items.stock}: <span className="font-semibold text-neutral-800 dark:text-neutral-200">{item.current_stock}</span> {displayUnit(item)}
                     </div>
                   </div>
                 ))}

@@ -12,6 +12,7 @@ import { paintUsageTemplate } from './src/pdf/paintUsageTemplate.js';
 import { stockTemplate } from './src/pdf/stockTemplate.js';
 import cookieParser from 'cookie-parser';
 import bcrypt from 'bcrypt';
+import rateLimit from 'express-rate-limit';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -133,7 +134,7 @@ async function initializeDatabase() {
   await safeExecute("CREATE TABLE IF NOT EXISTS items (id TEXT PRIMARY KEY, name TEXT NOT NULL, category TEXT NOT NULL, stock_unit TEXT NOT NULL, allow_direct_edit INTEGER NOT NULL, status TEXT, volume_per_can REAL, specification TEXT, current_stock REAL DEFAULT 0, CHECK (category IN ('CYLINDER', 'PAINT', 'STEEL')))");
   console.log('[db.init] items table ready');
 
-  await safeExecute("CREATE TABLE IF NOT EXISTS transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, item_id TEXT NOT NULL, type TEXT NOT NULL CHECK (type IN ('IN', 'OUT', 'EXCHANGE', 'ADJUSTMENT', 'DIRECT_EDIT')), quantity REAL NOT NULL, notes TEXT, photo_url TEXT, signature_url TEXT, user_name TEXT, ship_name TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(item_id) REFERENCES items(id))");
+  await safeExecute("CREATE TABLE IF NOT EXISTS transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, item_id TEXT NOT NULL, type TEXT NOT NULL CHECK (type IN ('IN', 'OUT', 'EXCHANGE', 'ADJUSTMENT')), quantity REAL NOT NULL, notes TEXT, photo_url TEXT, signature_url TEXT, user_name TEXT, ship_name TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(item_id) REFERENCES items(id))");
   console.log('[db.init] transactions table ready');
 
   await safeExecute("CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, email TEXT UNIQUE, password TEXT, password_hash TEXT NOT NULL, is_active BOOLEAN DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)");
@@ -324,6 +325,62 @@ async function startServer() {
       res.status(401).json({ error: 'Invalid token' });
     }
   };
+
+    const publicStockLimiter = rateLimit({
+      windowMs: 15 * 1000,
+      max: 30,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: {
+        error: 'Terlalu banyak permintaan. Coba lagi sebentar.'
+      }
+    });
+
+    app.get('/api/public-stock/:token', publicStockLimiter, async (req, res) => {
+      res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+      const allowedTokens = (process.env.PUBLIC_STOCK_KEYS || process.env.PUBLIC_STOCK_KEY || '')
+        .split(',')
+        .map(t => t.trim())
+        .filter(Boolean);
+      if (!allowedTokens.includes(req.params.token)) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+      try {
+        const rows = await queryAll(
+          `SELECT name, category, current_stock, stock_unit, volume_per_can
+           FROM items
+           WHERE current_stock > 0
+             AND (part_type IS NULL OR part_type != 'B')
+           ORDER BY
+             CASE category
+               WHEN 'STEEL' THEN 1
+               WHEN 'CYLINDER' THEN 2
+               WHEN 'PAINT' THEN 3
+             END,
+             name ASC`
+        );
+        res.json(rows);
+      } catch (err) {
+        console.error('[public-stock]', err);
+        res.status(500).json({ error: 'Failed to fetch stock data' });
+      }
+    });
+
+    app.get('/api/public-recent-transactions', async (_req, res) => {
+      try {
+        const rows = await queryAll(
+          `SELECT t.type, t.quantity, i.name AS item_name, i.stock_unit, t.created_at
+           FROM transactions t
+           JOIN items i ON i.id = t.item_id
+           ORDER BY t.created_at DESC
+           LIMIT 6`
+        );
+        res.json(rows);
+      } catch (err) {
+        console.error('[public-recent-transactions]', err);
+        res.status(500).json({ error: 'Failed to fetch recent transactions' });
+      }
+    });
 
     app.post('/api/auth/login', async (req, res) => {
     const { username, username_or_email, password } = req.body;
@@ -667,10 +724,6 @@ async function startServer() {
       const item = await queryOne<any>('SELECT * FROM items WHERE id = ?', [item_id]);
       if (!item) return res.status(404).json({ error: 'Item not found' });
 
-      if (type === 'DIRECT_EDIT' && !asNumber(item.allow_direct_edit)) {
-        return res.status(400).json({ error: 'Direct edit not allowed for this item' });
-      }
-
       if (type === 'EXCHANGE' && item.category !== 'CYLINDER') {
         return res.status(400).json({ error: 'Exchange is only allowed for cylinders' });
       }
@@ -729,7 +782,7 @@ async function startServer() {
       }
 
       const photo_url_db = photoUrls.length > 0 ? JSON.stringify(photoUrls) : null;
-      const needsAutoPair = item.category === 'PAINT' && item.part_type === 'A' && (type === 'IN' || type === 'OUT');
+      const needsAutoPair = item.category === 'PAINT' && item.part_type === 'A' && ['IN','OUT','ADJUSTMENT'].includes(type);
 
       let partB: any = null;
       if (needsAutoPair) {
@@ -757,7 +810,6 @@ async function startServer() {
         if (type === 'IN') stockChange = qty;
         else if (type === 'OUT') stockChange = -qty;
         else if (type === 'ADJUSTMENT') stockChange = qty;
-        else if (type === 'DIRECT_EDIT') stockChange = qty - asNumber(item.current_stock);
 
         if (stockChange !== 0) {
           if (type === 'OUT') {
@@ -1116,8 +1168,6 @@ async function startServer() {
         }
       });
 
-
-
   app.get('/api/reports/paint-usage-pdf', requireAuth, async (req, res) => {
     const { ship_name, start_date, end_date } = req.query;
 
@@ -1170,9 +1220,17 @@ async function startServer() {
     const html = paintUsageTemplate(report, String(ship_name), generatedDate, BASE_URL, photos);
     const pdfBuffer = await generatePdf(html);
 
+    const buffer = Buffer.from(pdfBuffer);
+
+    console.log('[paint-usage-pdf] rows:', report.length, '| photos:', photos.length, '| html:', html.length, 'bytes | pdf:', buffer.length, 'bytes');
+
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=paint-usage-${safeShipName}.pdf`);
-    res.send(pdfBuffer);
+    res.setHeader('Content-Disposition', `inline; filename=paint-usage-${safeShipName}.pdf`);
+    res.setHeader('Content-Length', buffer.length);
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Pragma', 'no-cache');
+
+    res.end(buffer);
   });
 
   app.get('/api/reports/steel-usage-json', requireAuth, async (req, res) => {

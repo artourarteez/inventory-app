@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
-import { uiText, categoryLabel } from '@/lib/uiText';
+import { uiText, categoryLabel, txTypeLabel } from '@/lib/uiText';
+import { displayUnit } from '@/lib/utils';
 import SearchableCombobox from '@/components/SearchableCombobox';
 
 const fieldClass = 'w-full px-3 py-2 text-sm border rounded-lg border-neutral-700 bg-neutral-900 text-white focus:ring-2 focus:ring-blue-500';
@@ -8,6 +9,27 @@ const selectClass = 'appearance-none w-full px-3 py-2 text-sm border rounded-lg 
 const labelClass = 'block text-sm font-medium text-neutral-700 dark:text-neutral-300';
 const buttonPrimaryClass = 'px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60';
 const buttonSecondaryClass = 'px-4 py-2 text-sm font-medium border rounded-lg border-neutral-700 bg-neutral-900 text-white hover:bg-neutral-800';
+
+function timeAgo(dateStr: string): string {
+  if (!dateStr) return '-';
+
+  const now = Date.now();
+
+  // SQLite → ISO UTC
+  const then = new Date(dateStr.replace(' ', 'T') + 'Z').getTime();
+
+  const diff = Math.max(0, now - then);
+
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return 'baru saja';
+  if (minutes < 60) return `${minutes} menit lalu`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} jam lalu`;
+
+  const days = Math.floor(hours / 24);
+  return `${days} hari lalu`;
+}
 
 function SignaturePad({ onSignatureChange }: { onSignatureChange: (dataUrl: string | null) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -132,6 +154,9 @@ export default function Transactions() {
   const [successMessage, setSuccessMessage] = useState('');
   const [fetchError, setFetchError] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [lastTx, setLastTx] = useState<any>(null);
+  const [lastTxLoading, setLastTxLoading] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -177,11 +202,26 @@ export default function Transactions() {
   const selectedItem = items.find(i => i.id === formData.item_id);
   const selectedItemCategory = selectedItem?.category;
 
+  useEffect(() => {
+    if (!formData.item_id) { setLastTx(null); return; }
+    let cancelled = false;
+    setLastTxLoading(true);
+    axios.get('/api/transactions', { params: { item_id: formData.item_id } })
+      .then(res => {
+        if (!cancelled) {
+          const list = Array.isArray(res.data) ? res.data : [];
+          setLastTx(list.length > 0 ? list[0] : null);
+        }
+      })
+      .catch(() => { if (!cancelled) setLastTx(null); })
+      .finally(() => { if (!cancelled) setLastTxLoading(false); });
+    return () => { cancelled = true; };
+  }, [formData.item_id]);
+
   const isIn = formData.type === 'IN';
   const isOut = formData.type === 'OUT';
   const isExchange = formData.type === 'EXCHANGE';
   const isAdjustment = formData.type === 'ADJUSTMENT';
-  const isDirectEdit = formData.type === 'DIRECT_EDIT';
 
   const showUserField = (selectedItemCategory === 'CYLINDER' || selectedItemCategory === 'STEEL') && (isOut || isExchange);
   const showShipField = (selectedItemCategory === 'PAINT' && (isIn || isOut)) || (selectedItemCategory === 'STEEL' && isOut);
@@ -201,13 +241,11 @@ export default function Transactions() {
     formData.type as keyof typeof uiText.transactions.typeHints
   ];
 
-  const quantityLabel = isDirectEdit ? uiText.transactions.physicalStockLabel : uiText.transactions.qty;
+  const quantityLabel = uiText.transactions.qty;
   const quantityHint = isIn || isOut
     ? uiText.transactions.qtyPerUnitHint
-    : isDirectEdit
-      ? uiText.transactions.physicalCountNote
-      : isAdjustment
-        ? uiText.transactions.adjustmentNote
+    : isAdjustment
+      ? uiText.transactions.adjustmentNote
         : '';
 
   const isSubmitDisabled =
@@ -230,10 +268,15 @@ export default function Transactions() {
     }
   }, [showUserField, showShipField, showSignatureField]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) return; // Prevent double submission
+    setShowConfirm(true);
+  };
 
+  const doSubmit = async () => {
+    if (isSubmitting) return;
+
+    setShowConfirm(false);
     setFormError('');
     setIsSubmitting(true);
 
@@ -326,6 +369,39 @@ export default function Transactions() {
               onChange={id => setFormData({ ...formData, item_id: id })}
               placeholder="Cari barang..."
             />
+            {selectedItem && (
+              <div className="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 p-3">
+                <p className="text-base font-bold text-neutral-900 dark:text-neutral-100">{selectedItem.name}</p>
+                <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-neutral-500 dark:text-neutral-400">
+                  <span>Kategori: <span className="text-neutral-700 dark:text-neutral-300">{categoryLabel[selectedItem.category] || selectedItem.category}</span></span>
+                  <span>Stok: <span className="font-semibold text-neutral-700 dark:text-neutral-300">{selectedItem.current_stock}</span></span>
+                  <span>Satuan: <span className="text-neutral-700 dark:text-neutral-300">{displayUnit(selectedItem)}</span></span>
+                </div>
+              </div>
+            )}
+            {selectedItem && !lastTxLoading && lastTx && (
+              <div className="mt-2 rounded-lg border border-neutral-700 bg-neutral-800/50 p-3 text-xs space-y-1">
+                <span className="font-semibold uppercase tracking-wide text-neutral-400">Transaksi Terakhir</span>
+                <p className="text-neutral-200">
+                  <span className="font-bold">{txTypeLabel[lastTx.type] || lastTx.type}</span>{' '}
+                  {lastTx.quantity} {lastTx.stock_unit || displayUnit(selectedItem)}
+                </p>
+                {(lastTx.user_name || lastTx.ship_name) && (
+                  <p className="text-neutral-400">
+                    {lastTx.user_name ? `oleh ${lastTx.user_name}` : ''}
+                    {lastTx.user_name && lastTx.ship_name ? ' \u2022 ' : ''}
+                    {lastTx.ship_name ? `Kapal: ${lastTx.ship_name}` : ''}
+                  </p>
+                )}
+                <p className="text-neutral-500">{timeAgo(lastTx.created_at)}</p>
+              </div>
+            )}
+            {selectedItem && !lastTxLoading && !lastTx && (
+              <p className="mt-2 text-xs text-neutral-500">Belum ada transaksi sebelumnya</p>
+            )}
+            {selectedItem && lastTxLoading && (
+              <p className="mt-2 text-xs text-neutral-400">Memuat transaksi terakhir...</p>
+            )}
           </div>
           <div className="space-y-2">
             <label className={labelClass}>{uiText.transactions.type}</label>
@@ -340,7 +416,6 @@ export default function Transactions() {
                 <option value="OUT">{uiText.transactions.stockOut}</option>
                 <option value="EXCHANGE">{uiText.transactions.exchange}</option>
                 <option value="ADJUSTMENT">{uiText.transactions.adjustment}</option>
-                <option value="DIRECT_EDIT">{uiText.transactions.directEdit}</option>
               </select>
               <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-neutral-400">▼</span>
             </div>
@@ -444,17 +519,47 @@ export default function Transactions() {
         </div>
       )}
 
+      {showConfirm && selectedItem && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={() => setShowConfirm(false)}>
+          <div className="w-full max-w-sm rounded-xl border border-neutral-200 bg-white p-5 shadow-xl dark:border-neutral-700 dark:bg-neutral-900" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-neutral-800 dark:text-neutral-100 mb-4">Konfirmasi Transaksi</h3>
+            <div className="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 p-4 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-neutral-500">Barang</span>
+                <span className="font-semibold text-neutral-800 dark:text-neutral-100 text-right max-w-[60%] break-words">{selectedItem.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-neutral-500">Kategori</span>
+                <span className="text-neutral-800 dark:text-neutral-200">{categoryLabel[selectedItem.category] || selectedItem.category}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-neutral-500">Tipe</span>
+                <span className="text-neutral-800 dark:text-neutral-200">{txTypeLabel[formData.type] || formData.type}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-neutral-500">Jumlah</span>
+                <span className="font-semibold text-neutral-800 dark:text-neutral-100">{formData.quantity} {displayUnit(selectedItem)}</span>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button type="button" onClick={() => setShowConfirm(false)} className={buttonSecondaryClass}>Batal</button>
+              <button type="button" onClick={doSubmit} className={buttonPrimaryClass}>Konfirmasi</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="rounded-md border border-neutral-800 bg-card">
         {/* Desktop Table */}
         <div className="hidden md:block overflow-x-auto">
           <table className="min-w-full text-sm">
-            <thead className="text-xs uppercase text-neutral-400 border-b border-neutral-700">
+            <thead className="text-xs uppercase text-neutral-400 border-b border-neutral-700 bg-neutral-900/50">
               <tr>
                 <th className="px-3 py-2 text-left">Tanggal</th>
                 <th className="px-3 py-2 text-left">Item</th>
                 <th className="px-3 py-2 text-left">Kategori</th>
                 <th className="px-3 py-2 text-left">Tipe</th>
-                <th className="px-3 py-2 text-left">Jumlah</th>
+                <th className="px-3 py-2 text-right">Jumlah</th>
                 <th className="px-3 py-2 text-left">Kapal</th>
               </tr>
             </thead>
@@ -467,12 +572,20 @@ export default function Transactions() {
                 </tr>
               ) : (
                 transactions.map((tx, idx) => (
-                  <tr key={tx.id ?? idx} className="border-b border-neutral-800">
-                    <td className="px-3 py-2">{tx.created_at ? new Date(tx.created_at).toLocaleDateString() : '-'}</td>
-                    <td className="px-3 py-2">{tx.item_name}</td>
+                  <tr key={tx.id ?? idx} className="border-b border-neutral-800 odd:bg-neutral-900/30 hover:bg-neutral-900/60 transition-colors">
+                    <td className="px-3 py-2 whitespace-nowrap">{tx.created_at ? new Date(tx.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}</td>
+                    <td className="px-3 py-2 max-w-[320px] truncate">{tx.item_name}</td>
                     <td className="px-3 py-2">{categoryLabel[tx.category as keyof typeof categoryLabel] || tx.category || '-'}</td>
-                    <td className="px-3 py-2">{tx.type}</td>
-                    <td className="px-3 py-2">{tx.quantity}</td>
+                    <td className="px-3 py-2">
+                      <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${
+                        tx.type === 'IN' ? 'bg-green-900/30 text-green-300' :
+                        tx.type === 'OUT' ? 'bg-red-900/30 text-red-300' :
+                        tx.type === 'ADJUSTMENT' ? 'bg-amber-900/30 text-amber-300' :
+                        tx.type === 'EXCHANGE' ? 'bg-blue-900/30 text-blue-300' :
+                        'bg-neutral-700 text-neutral-300'
+                      }`}>{tx.type}</span>
+                    </td>
+                    <td className="px-3 py-2 text-right font-medium">{tx.quantity} {tx.stock_unit || ''}</td>
                     <td className="px-3 py-2">{tx.ship_name || '-'}</td>
                   </tr>
                 ))
@@ -490,12 +603,14 @@ export default function Transactions() {
           ) : (
             <div className="divide-y divide-neutral-800">
               {transactions.map((tx, idx) => (
-                <div key={tx.id ?? idx} className="p-3 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm text-neutral-200">{tx.item_name}</span>
-                    <span className={`inline-flex rounded px-2 py-0.5 text-xs font-medium ${
-                      tx.type === 'IN' ? 'bg-green-900/30 text-green-300' : 
-                      tx.type === 'OUT' ? 'bg-red-900/30 text-red-300' : 
+                <div key={tx.id ?? idx} className="px-3 py-2.5 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-sm text-neutral-200 truncate">{tx.item_name}</span>
+                    <span className={`inline-flex items-center shrink-0 rounded px-2 py-0.5 text-xs font-medium ${
+                      tx.type === 'IN' ? 'bg-green-900/30 text-green-300' :
+                      tx.type === 'OUT' ? 'bg-red-900/30 text-red-300' :
+                      tx.type === 'ADJUSTMENT' ? 'bg-amber-900/30 text-amber-300' :
+                      tx.type === 'EXCHANGE' ? 'bg-blue-900/30 text-blue-300' :
                       'bg-neutral-700 text-neutral-200'
                     }`}>
                       {tx.type}
@@ -503,10 +618,10 @@ export default function Transactions() {
                   </div>
                   <div className="flex items-center justify-between text-xs text-neutral-400">
                     <span>{categoryLabel[tx.category as keyof typeof categoryLabel] || tx.category || '-'}</span>
-                    <span className="font-bold text-neutral-200">{tx.quantity}</span>
+                    <span className="font-medium text-neutral-200">{tx.quantity} {tx.stock_unit || ''}</span>
                   </div>
-                  <div className="flex items-center justify-between text-xs text-neutral-400">
-                    <span>{tx.created_at ? new Date(tx.created_at).toLocaleDateString() : '-'}</span>
+                  <div className="flex items-center justify-between text-xs text-neutral-500">
+                    <span>{tx.created_at ? new Date(tx.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}</span>
                     <span>{tx.ship_name || '-'}</span>
                   </div>
                 </div>

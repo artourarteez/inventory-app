@@ -91,14 +91,12 @@ export const uiText = {
     stockIn: "Stok Masuk",
     stockOut: "Stok Keluar",
     exchange: "Tukar (Hanya Tabung)",
-    adjustment: "Penyesuaian",
-    directEdit: "Edit Langsung (Opname)",
+    adjustment: "Penyesuaian (Opname)",
     typeHints: {
       OUT: "Barang keluar untuk pemakaian.",
       IN: "Barang masuk ke gudang.",
       EXCHANGE: "Tukar tabung kosong dengan isi. Stok tidak berubah.",
-      DIRECT_EDIT: "Penyesuaian stok berdasarkan fisik gudang (opname).",
-      ADJUSTMENT: "Koreksi karena selisih, rusak, atau kesalahan pencatatan.",
+      ADJUSTMENT: "Koreksi stok: gunakan nilai positif (+) atau negatif (-).",
     },
     qtyPerUnitHint: "Jumlah per satuan item.",
     physicalCountNote: "Masukkan jumlah fisik sebenarnya.",
@@ -179,7 +177,6 @@ export const txTypeLabel: Record<string, string> = {
   OUT: "Stok Keluar",
   EXCHANGE: "Tukar",
   ADJUSTMENT: "Penyesuaian",
-  DIRECT_EDIT: "Set Stok Awal",
 };
 
 export const statusLabel: Record<string, string> = {

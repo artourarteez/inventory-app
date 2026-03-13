@@ -19,7 +19,7 @@ export function paintUsageTemplate(
         <tr>
           <td>${escapeHtml(String(row.item_name || '-'))}</td>
           <td class="num">${cans}</td>
-          <td class="num">${liters.toFixed(2)}</td>
+          <td class="num">${liters.toFixed(2)} L</td>
         </tr>`;
     })
     .join('');
@@ -34,13 +34,34 @@ export function paintUsageTemplate(
       font-family: Arial, sans-serif;
       color: #222;
     }
-    h1, h2 {
-      margin: 0;
+    .header {
       text-align: center;
+      margin-bottom: 30px;
     }
-    h1 { font-size: 20px; }
-    h2 { font-size: 16px; margin-bottom: 24px; }
-    .info { margin-bottom: 20px; font-size: 12px; }
+    .company {
+      font-size: 20px;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+    .title {
+      font-size: 14px;
+      margin-top: 4px;
+    }
+    .divider {
+      width: 60px;
+      height: 2px;
+      background: #000;
+      margin: 8px auto;
+    }
+    .report-date {
+      font-size: 11px;
+      color: #666;
+    }
+    .info { margin-bottom: 20px; }
+    .meta td {
+      padding: 2px 6px 2px 0;
+      font-size: 12px;
+    }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -59,13 +80,21 @@ export function paintUsageTemplate(
     tr:not(:last-child) td {
       border-bottom: 1px solid #eee;
     }
+    tbody tr:nth-child(even) {
+      background: #fafafa;
+    }
+    td:first-child {
+      max-width: 320px;
+      word-break: break-word;
+    }
     .totals {
       margin-top: 20px;
-      text-align: right;
       font-size: 12px;
       font-weight: bold;
       border-top: 2px solid #333;
       padding-top: 10px;
+      width: 200px;
+      margin-left: auto;
     }
     .footer {
       margin-top: 40px;
@@ -78,8 +107,8 @@ export function paintUsageTemplate(
       page-break-before: always;
     }
     .photo-section h3 {
-      font-size: 16px;
       text-align: center;
+      font-size: 16px;
       margin-bottom: 16px;
     }
     .photos {
@@ -88,19 +117,32 @@ export function paintUsageTemplate(
       gap: 10px;
     }
     .photos img {
-      width: 240px;
+      width: 48%;
+      page-break-inside: avoid;
       border: 1px solid #ccc;
       padding: 4px;
     }
   </style>
 </head>
 <body>
-  <h1>PT. NDS</h1>
-  <h2>Laporan Penggunaan Cat</h2>
+  <div class="header">
+    <div class="company">PT NDS</div>
+    <div class="title">LAPORAN PENGGUNAAN CAT</div>
+    <div class="divider"></div>
+    <div class="report-date">Generated: ${escapeHtml(generatedDate)}</div>
+  </div>
 
   <div class="info">
-    Nama Kapal : ${escapeHtml(shipName)}<br>
-    Tanggal &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: ${escapeHtml(generatedDate)}
+    <table class="meta">
+      <tr>
+        <td>Kapal</td>
+        <td>: ${escapeHtml(shipName)}</td>
+      </tr>
+      <tr>
+        <td>Tanggal</td>
+        <td>: ${escapeHtml(generatedDate)}</td>
+      </tr>
+    </table>
   </div>
 
   <table>
@@ -118,7 +160,7 @@ export function paintUsageTemplate(
 
   <div class="totals">
     Total Kaleng : ${totalCans}<br>
-    Total Liter &nbsp;&nbsp;: ${totalLiters.toFixed(2)}
+    Total Liter &nbsp;&nbsp;: ${totalLiters.toFixed(2)} L
   </div>
 
   ${photos.length > 0 ? `

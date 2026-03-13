@@ -15,6 +15,7 @@ import CreatePurchaseOrder from './pages/CreatePurchaseOrder';
 import PurchaseOrderDetail from './pages/PurchaseOrderDetail';
 import Login from './pages/Login';
 import Profile from './pages/Profile';
+import LiveStock from './pages/live-stock';
 import { uiText } from './lib/uiText';
 import { ThemeProvider } from './components/theme-provider';
 import { ThemeToggle } from './components/theme-toggle';
@@ -165,6 +166,7 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/stock/:token" element={<LiveStock />} />
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/items" element={<ProtectedRoute><MasterItems /></ProtectedRoute>} />
             <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
