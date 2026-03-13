@@ -1127,8 +1127,15 @@ async function startServer() {
     }
   });
 
-  app.get('/api/reports/stock-pdf', requireAuth, async (_req, res) => {
+  app.get('/api/reports/stock-pdf', requireAuth, async (req, res) => {
     try {
+      const validCategories = ['STEEL', 'CYLINDER', 'PAINT'];
+      const category = typeof req.query.category === 'string' ? req.query.category.toUpperCase() : undefined;
+
+      if (category && category !== 'ALL' && !validCategories.includes(category)) {
+        return res.status(400).json({ error: 'Invalid category. Use STEEL, CYLINDER, or PAINT.' });
+      }
+
       const items = await queryAll<any>(
         `SELECT name, category, current_stock, stock_unit, volume_per_can
          FROM items
@@ -1143,10 +1150,14 @@ async function startServer() {
            name ASC`
       );
 
+      const filteredItems = category && category !== 'ALL'
+        ? items.filter((i: any) => i.category === category)
+        : items;
+
       const grouped = {
-            STEEL: items.filter((i: any) => i.category === 'STEEL'),
-            CYLINDER: items.filter((i: any) => i.category === 'CYLINDER'),
-            PAINT: items.filter((i: any) => i.category === 'PAINT'),
+            STEEL: filteredItems.filter((i: any) => i.category === 'STEEL'),
+            CYLINDER: filteredItems.filter((i: any) => i.category === 'CYLINDER'),
+            PAINT: filteredItems.filter((i: any) => i.category === 'PAINT'),
           };
 
           const generatedDate = new Date().toLocaleDateString();
@@ -1156,8 +1167,12 @@ async function startServer() {
 
           const buffer = Buffer.from(pdf);
 
+          const filename = category && category !== 'ALL'
+            ? `${category.toLowerCase()}-stock-report.pdf`
+            : 'stock-report.pdf';
+
           res.setHeader("Content-Type", "application/pdf");
-          res.setHeader("Content-Disposition", "attachment; filename=stock-report.pdf");
+          res.setHeader("Content-Disposition", `attachment; filename=${filename}`);
           res.setHeader("Content-Length", buffer.length);
           res.setHeader("Cache-Control", "no-store");
 

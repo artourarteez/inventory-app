@@ -63,6 +63,7 @@ export default function Reports() {
 
   const [steelUsage, setSteelUsage] = useState<any[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [reportCategory, setReportCategory] = useState('ALL');
 
   useEffect(() => {
     setExportError('');
@@ -227,7 +228,10 @@ export default function Reports() {
   };
 
   const handleExportStock = () => {
-    window.open('/api/reports/stock-pdf', '_blank');
+    const url = reportCategory === 'ALL'
+      ? '/api/reports/stock-pdf'
+      : `/api/reports/stock-pdf?category=${reportCategory}`;
+    window.open(url, '_blank');
   };
 
   const extractPdfErrorMessage = async (error: unknown, fallbackMessage: string) => {
@@ -761,9 +765,22 @@ export default function Reports() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <div className="rounded-xl border bg-card p-6 shadow-sm">
           <h3 className="font-semibold text-lg mb-2">{uiText.reports.stockReport}</h3>
-          <p className="text-sm text-muted-foreground mb-6">
+          <p className="text-sm text-muted-foreground mb-4">
             {uiText.reports.stockReportDesc}
           </p>
+          <div className="mb-3">
+            <label className={labelClass}>Kategori Laporan</label>
+            <select
+              value={reportCategory}
+              onChange={e => setReportCategory(e.target.value)}
+              className={`${selectClass} mt-1`}
+            >
+              <option value="ALL">Semua</option>
+              <option value="STEEL">Besi</option>
+              <option value="CYLINDER">Tabung</option>
+              <option value="PAINT">Cat</option>
+            </select>
+          </div>
           <button onClick={handleExportStock} className={`${buttonPrimaryClass} w-full gap-2`}>
             <FileDown className="w-4 h-4" />
             {uiText.reports.exportPdf}

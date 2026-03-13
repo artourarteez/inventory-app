@@ -215,7 +215,7 @@ export function stockTemplate(
     Petugas diharapkan melakukan stok opname rutin untuk validasi data sistem.
   </div>
 
-  <div class="footer">Laporan stok gudang otomatis dari sistem inventori</div>
+  <div class="footer"> ©2026 PT NDS Inventory. Automated by Rama.</div>
 </body>
 </html>`;
 }
