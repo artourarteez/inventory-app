@@ -172,34 +172,40 @@ export default function Dashboard() {
 
               {/* Mobile Cards */}
               <div className="md:hidden divide-y divide-neutral-100 dark:divide-neutral-800">
-                {groupedItems[cat].map(item => (
-                  <div key={item.id} className="p-3">
-                    <div className="flex justify-between items-start">
-                      <span className="font-medium text-sm text-neutral-800 dark:text-neutral-200 break-words">{item.name}</span>
-                      {(() => {
-                        const status = (item.category === 'STEEL' || item.category === 'PAINT')
-                          ? getStockStatus(item)
-                          : item.status;
-                        if (!status) return null;
-                        const badgeClass = status === 'IN_STOCK' || status === 'normal'
-                          ? 'bg-green-100 text-green-700'
-                          : status === 'LOW_STOCK'
-                            ? 'bg-yellow-100 text-yellow-700'
-                            : status === 'OUT_OF_STOCK'
-                              ? 'bg-red-100 text-red-700'
-                              : 'bg-red-100 text-red-700';
-                        return (
-                          <span className={`inline-block px-2 py-0.5 text-xs font-medium rounded ${badgeClass}`}>
+                {groupedItems[cat].map(item => {
+                  const status = (item.category === 'STEEL' || item.category === 'PAINT')
+                    ? getStockStatus(item)
+                    : item.status;
+                  const badgeClass = status === 'IN_STOCK' || status === 'normal'
+                    ? 'bg-green-100 text-green-700'
+                    : status === 'LOW_STOCK'
+                      ? 'bg-yellow-100 text-yellow-700'
+                      : 'bg-red-100 text-red-700';
+                  return (
+                    <div key={item.id} className="px-3 py-3">
+                      <div className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1">
+                        {/* Row 1, Col 1: item name */}
+                        <span className="font-semibold text-sm text-neutral-800 dark:text-neutral-200 line-clamp-2">
+                          {item.name}
+                        </span>
+                        {/* Row 1, Col 2: quantity */}
+                        <span className="text-sm font-medium text-neutral-600 dark:text-neutral-300 text-right whitespace-nowrap">
+                          {item.current_stock} {displayUnit(item)}
+                        </span>
+                        {/* Row 2, Col 1: category */}
+                        <span className="text-xs text-neutral-500">
+                          {categoryLabel[item.category] || item.category}
+                        </span>
+                        {/* Row 2, Col 2: status badge */}
+                        {status && (
+                          <span className={`justify-self-end px-2 py-0.5 rounded text-xs font-medium ${badgeClass}`}>
                             {statusLabel[status] || status}
                           </span>
-                        );
-                      })()}
+                        )}
+                      </div>
                     </div>
-                    <div className="text-sm text-neutral-500 mt-1">
-                      {uiText.items.stock}: <span className="font-semibold text-neutral-800 dark:text-neutral-200">{item.current_stock}</span> {displayUnit(item)}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))}

@@ -118,9 +118,9 @@ export default function PurchaseOrders() {
         ) : (
           orders.map((po) => (
             <div key={po.id} className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-sm text-neutral-800 dark:text-neutral-200">{po.po_number}</span>
-                <span className={`inline-block px-2 py-0.5 text-xs font-medium rounded ${statusBadgeClass[po.status] || 'bg-neutral-100 text-neutral-600'}`}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium text-sm text-neutral-800 dark:text-neutral-200 truncate min-w-0">{po.po_number}</span>
+                <span className={`shrink-0 inline-block px-2 py-0.5 text-xs font-medium rounded ${statusBadgeClass[po.status] || 'bg-neutral-100 text-neutral-600'}`}>
                   {po.status}
                 </span>
               </div>

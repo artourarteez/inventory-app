@@ -585,7 +585,12 @@ export default function Transactions() {
                         'bg-neutral-700 text-neutral-300'
                       }`}>{tx.type}</span>
                     </td>
-                    <td className="px-3 py-2 text-right font-medium">{tx.quantity} {tx.stock_unit || ''}</td>
+                    <td className="px-3 py-2 text-right font-medium">
+                      {tx.quantity} {(() => {
+                        const item = items.find(i => i.id === tx.item_id);
+                        return item ? displayUnit(item) : (tx.stock_unit || '');
+                      })()}
+                    </td>
                     <td className="px-3 py-2">{tx.ship_name || '-'}</td>
                   </tr>
                 ))
@@ -618,7 +623,12 @@ export default function Transactions() {
                   </div>
                   <div className="flex items-center justify-between text-xs text-neutral-400">
                     <span>{categoryLabel[tx.category as keyof typeof categoryLabel] || tx.category || '-'}</span>
-                    <span className="font-medium text-neutral-200">{tx.quantity} {tx.stock_unit || ''}</span>
+                    <span className="font-medium text-neutral-200">
+                      {tx.quantity} {(() => {
+                        const item = items.find(i => i.id === tx.item_id);
+                        return item ? displayUnit(item) : (tx.stock_unit || '');
+                      })()}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between text-xs text-neutral-500">
                     <span>{tx.created_at ? new Date(tx.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}</span>

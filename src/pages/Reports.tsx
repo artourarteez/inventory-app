@@ -39,7 +39,7 @@ function Modal({ open, onClose, title, children }: ModalProps) {
 }
 
 export default function Reports() {
-  const [view, setView] = useState<'menu' | 'txHistory' | 'paintUsage' | 'steelUsage'>('menu');
+  const [view, setView] = useState<'menu' | 'txHistory' | 'paintUsage' | 'steelUsage' | 'materialIn'>('menu');
 
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -62,6 +62,7 @@ export default function Reports() {
   const [steelFilterApplied, setSteelFilterApplied] = useState(false);
 
   const [steelUsage, setSteelUsage] = useState<any[]>([]);
+  const [materialIn, setMaterialIn] = useState<any[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
   const [reportCategory, setReportCategory] = useState('ALL');
 
@@ -77,6 +78,9 @@ export default function Reports() {
     } else if (view === 'steelUsage') {
       fetchSteelFilterOptions();
       fetchSteelUsage();
+    } else if (view === 'materialIn') {
+      fetchItems();
+      fetchMaterialIn();
     }
   }, [view]);
 
@@ -156,6 +160,25 @@ export default function Reports() {
     }
   };
 
+  const fetchMaterialIn = async () => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (startDate) params.append('start_date', startDate);
+      if (endDate) params.append('end_date', endDate);
+      if (category && category !== 'all') params.append('category', category);
+      if (itemId && itemId !== 'all') params.append('item_id', itemId);
+
+      const res = await axios.get(`/api/reports/material-in?${params.toString()}`);
+      setMaterialIn(res.data);
+    } catch (err) {
+      console.error(err);
+      setMaterialIn([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const fetchSteelFilterOptions = async () => {
     setIsLoading(true);
     try {
@@ -192,6 +215,7 @@ export default function Reports() {
       if (view === 'txHistory') await fetchTransactions();
       if (view === 'paintUsage') await fetchPaintUsage();
       if (view === 'steelUsage') await fetchSteelUsage();
+      if (view === 'materialIn') await fetchMaterialIn();
     } finally {
       setIsLoading(false);
     }
@@ -224,6 +248,11 @@ export default function Reports() {
       });
     } else if (view === 'steelUsage') {
       fetchSteelFilterOptions();
+    } else if (view === 'materialIn') {
+      axios.get('/api/reports/material-in').then(res => {
+        setMaterialIn(res.data);
+        setIsLoading(false);
+      });
     }
   };
 
@@ -305,6 +334,42 @@ export default function Reports() {
       const link = document.createElement('a');
       link.href = blobUrl;
       link.download = `steel-usage-${steelShipName}-${contractorName}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+      setExportSuccess(uiText.reports.exportSuccess);
+      setTimeout(() => setExportSuccess(''), 3000);
+    } catch (error) {
+      const message = await extractPdfErrorMessage(error, uiText.common.error);
+      setExportError(message);
+    }
+  };
+
+  const handleExportMaterialInPdf = async () => {
+    if (!category || category === 'all') {
+      setExportError('Pilih kategori terlebih dahulu untuk export PDF.');
+      return;
+    }
+
+    setExportError('');
+    setExportSuccess('');
+
+    const params = new URLSearchParams();
+    params.append('category', category);
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (itemId && itemId !== 'all') params.append('item_id', itemId);
+
+    try {
+      const res = await axios.get(`/api/reports/material-in-pdf?${params.toString()}`, {
+        responseType: 'blob'
+      });
+      const blobUrl = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      const dateStr = format(new Date(), 'dd-MMM-yyyy').toLowerCase();
+      link.download = `material-in-${category.toLowerCase()}-${dateStr}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -460,9 +525,9 @@ export default function Reports() {
           ) : (
             transactions.map((tx, idx) => (
               <div key={tx.id ?? idx} className="rounded-md border bg-card p-3 space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-sm">{tx.item_name}</span>
-                  <span className={`inline-flex rounded px-2 py-1 text-xs font-medium ${tx.type === 'IN' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-neutral-200 text-neutral-700 dark:bg-neutral-700 dark:text-neutral-200'}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium text-sm truncate min-w-0">{tx.item_name}</span>
+                  <span className={`shrink-0 inline-flex rounded px-2 py-1 text-xs font-medium ${tx.type === 'IN' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-neutral-200 text-neutral-700 dark:bg-neutral-700 dark:text-neutral-200'}`}>
                     {txTypeLabel[tx.type] || tx.type}
                   </span>
                 </div>
@@ -755,6 +820,152 @@ export default function Reports() {
     );
   }
 
+  if (view === 'materialIn') {
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <button type="button" title="Back" aria-label="Back" onClick={() => setView('menu')} className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-neutral-600 transition hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">Daftar Barang Masuk</h2>
+              <p className="text-muted-foreground text-sm">Laporan material yang masuk ke gudang</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setFilterOpen(true)} className={`${buttonOutlineClass} gap-2`}>
+              <Filter className="w-4 h-4" />
+              Filter
+            </button>
+            <button type="button" onClick={handleExportMaterialInPdf} disabled={!category || category === 'all'} className={`${buttonOutlineClass} gap-2`}>
+              <FileDown className="w-4 h-4" />
+              {uiText.reports.exportPdf}
+            </button>
+          </div>
+        </div>
+
+        {exportError && (
+          <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">{exportError}</div>
+        )}
+        {exportSuccess && (
+          <div className="bg-success/15 text-success text-sm p-3 rounded-md">{exportSuccess}</div>
+        )}
+
+        <Modal open={filterOpen} onClose={() => setFilterOpen(false)} title="Filter Barang Masuk">
+          <form onSubmit={(e) => { handleApplyFilter(e); setFilterOpen(false); }} className="space-y-3">
+            <div className="space-y-2">
+              <label className={labelClass}>{uiText.reports.startDate}</label>
+              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} aria-label={uiText.reports.startDate} className={fieldClass} />
+            </div>
+            <div className="space-y-2">
+              <label className={labelClass}>{uiText.reports.endDate}</label>
+              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} aria-label={uiText.reports.endDate} className={fieldClass} />
+            </div>
+            <div className="space-y-2">
+              <label className={labelClass}>{uiText.reports.colCategory}</label>
+              <div className="relative w-full">
+                <select value={category} onChange={e => setCategory(e.target.value)} aria-label={uiText.reports.colCategory} className={selectClass}>
+                  <option value="all">{uiText.reports.allCategories}</option>
+                  <option value="STEEL">{categoryLabel.STEEL}</option>
+                  <option value="PAINT">{categoryLabel.PAINT}</option>
+                  <option value="CYLINDER">{categoryLabel.CYLINDER}</option>
+                </select>
+                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-neutral-400">▼</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className={labelClass}>{uiText.reports.colItem}</label>
+              <div className="relative w-full">
+                <select value={itemId} onChange={e => setItemId(e.target.value)} aria-label={uiText.reports.colItem} className={selectClass}>
+                  <option value="all">{uiText.reports.allItem}</option>
+                  {items.map(item => (
+                    <option key={item.id} value={item.id}>{item.name}</option>
+                  ))}
+                </select>
+                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-neutral-400">▼</span>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button type="button" onClick={() => { handleResetFilter(); setFilterOpen(false); }} className={`${buttonOutlineClass} flex-1`}>
+                {uiText.reports.resetFilter}
+              </button>
+              <button type="submit" className={`${buttonPrimaryClass} flex-1`}>
+                {uiText.reports.applyFilter}
+              </button>
+            </div>
+          </form>
+        </Modal>
+
+        <div className="hidden md:block rounded-md border bg-card overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500 dark:bg-neutral-800/60 dark:text-neutral-400">
+              <tr>
+                <th className="px-3 py-2 text-left">{uiText.reports.colDate}</th>
+                <th className="px-3 py-2 text-left">{uiText.reports.colItem}</th>
+                <th className="px-3 py-2 text-left">{uiText.reports.colCategory}</th>
+                <th className="px-3 py-2 text-right">{uiText.reports.colQty}</th>
+                <th className="px-3 py-2 text-left">{uiText.reports.colUnit}</th>
+                <th className="px-3 py-2 text-left">{uiText.reports.colUser}</th>
+                <th className="px-3 py-2 text-left">{uiText.reports.colNotes}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-muted-foreground">{uiText.common.loading}</td>
+                </tr>
+              ) : materialIn.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-muted-foreground">{uiText.common.noData}</td>
+                </tr>
+              ) : (
+                materialIn.map((tx, idx) => (
+                  <tr key={tx.id ?? idx} className="border-t border-neutral-200 dark:border-neutral-700">
+                    <td className="whitespace-nowrap px-3 py-2 text-sm text-muted-foreground">
+                      {tx.created_at ? format(new Date(tx.created_at), 'MMM d, yyyy HH:mm') : '-'}
+                    </td>
+                    <td className="px-3 py-2 font-medium">{tx.item_name}</td>
+                    <td className="px-3 py-2">{categoryLabel[tx.category] || tx.category || '-'}</td>
+                    <td className="px-3 py-2 text-right font-bold">{tx.quantity}</td>
+                    <td className="px-3 py-2">{tx.stock_unit || '-'}</td>
+                    <td className="px-3 py-2">{tx.user_name || '-'}</td>
+                    <td className="max-w-50 truncate px-3 py-2 text-sm text-muted-foreground">{tx.notes || '-'}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="md:hidden space-y-3">
+          {isLoading ? (
+            <div className="text-center py-8 text-muted-foreground">{uiText.common.loading}</div>
+          ) : materialIn.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">{uiText.common.noData}</div>
+          ) : (
+            materialIn.map((tx, idx) => (
+              <div key={tx.id ?? idx} className="rounded-md border bg-card p-3 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-sm">{tx.item_name}</span>
+                  <span className="font-bold text-sm">{tx.quantity} {tx.stock_unit || ''}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{categoryLabel[tx.category] || tx.category || '-'}</span>
+                  <span>{tx.user_name || '-'}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{tx.created_at ? format(new Date(tx.created_at), 'MMM d, yyyy HH:mm') : '-'}</span>
+                </div>
+                {tx.notes && <p className="text-xs text-muted-foreground truncate">{tx.notes}</p>}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -815,6 +1026,17 @@ export default function Reports() {
             {uiText.reports.steelUsageDesc}
           </p>
           <button onClick={() => setView('steelUsage')} className={`${buttonOutlineClass} w-full gap-2`}>
+            <Search className="w-4 h-4" />
+            {uiText.reports.viewReport}
+          </button>
+        </div>
+
+        <div className="rounded-xl border bg-card p-6 shadow-sm">
+          <h3 className="font-semibold text-lg mb-2">Daftar Barang Masuk</h3>
+          <p className="text-sm text-muted-foreground mb-6">
+            Laporan material yang masuk ke gudang
+          </p>
+          <button onClick={() => setView('materialIn')} className={`${buttonOutlineClass} w-full gap-2`}>
             <Search className="w-4 h-4" />
             {uiText.reports.viewReport}
           </button>

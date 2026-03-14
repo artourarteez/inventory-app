@@ -177,9 +177,6 @@ export default function LiveStock() {
                   <span className={`text-xs font-bold px-2 py-0.5 rounded ${colors.badge}`}>
                     {label}
                   </span>
-                  <span className="text-xs text-neutral-400 dark:text-neutral-500 ml-2">
-                    {catItems.length} item
-                  </span>
                 </div>
 
                 {/* Items */}

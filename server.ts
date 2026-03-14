@@ -10,6 +10,7 @@ import jwt from 'jsonwebtoken';
 import { generatePdf } from './src/pdf/generatePdf.js';
 import { paintUsageTemplate } from './src/pdf/paintUsageTemplate.js';
 import { stockTemplate } from './src/pdf/stockTemplate.js';
+import { materialInTemplate } from './src/pdf/materialInTemplate.js';
 import cookieParser from 'cookie-parser';
 import bcrypt from 'bcrypt';
 import rateLimit from 'express-rate-limit';
@@ -1252,6 +1253,100 @@ async function startServer() {
     res.setHeader('Pragma', 'no-cache');
 
     res.end(buffer);
+  });
+
+  app.get('/api/reports/material-in', requireAuth, async (req, res) => {
+    const { start_date, end_date, category, item_id } = req.query;
+
+    let query = `
+      SELECT t.*, i.name as item_name, i.category, i.stock_unit
+      FROM transactions t
+      JOIN items i ON t.item_id = i.id
+      WHERE t.type = 'IN'
+    `;
+    const params: QueryParams = [];
+
+    if (start_date) {
+      query += ` AND date(t.created_at) >= date(?)`;
+      params.push(start_date);
+    }
+    if (end_date) {
+      query += ` AND date(t.created_at) <= date(?)`;
+      params.push(end_date);
+    }
+    if (category && category !== 'all') {
+      query += ` AND i.category = ?`;
+      params.push(category);
+    }
+    if (item_id && item_id !== 'all') {
+      query += ` AND t.item_id = ?`;
+      params.push(item_id);
+    }
+
+    query += ` ORDER BY t.created_at DESC`;
+
+    try {
+      const rows = await queryAll(query, params);
+      return res.json(rows);
+    } catch {
+      return res.status(500).json({ error: 'Failed to fetch material-in data' });
+    }
+  });
+
+  app.get('/api/reports/material-in-pdf', requireAuth, async (req, res) => {
+    const { category, start_date, end_date, item_id } = req.query;
+
+    if (!category || category === 'all') {
+      return res.status(400).json({ error: 'Category is required to export this report.' });
+    }
+
+    let query = `
+      SELECT t.*, i.name as item_name, i.category, i.stock_unit
+      FROM transactions t
+      JOIN items i ON t.item_id = i.id
+      WHERE t.type = 'IN'
+        AND i.category = ?
+    `;
+    const params: QueryParams = [category];
+
+    if (start_date) {
+      query += ` AND date(t.created_at) >= date(?)`;
+      params.push(start_date);
+    }
+    if (end_date) {
+      query += ` AND date(t.created_at) <= date(?)`;
+      params.push(end_date);
+    }
+    if (item_id && item_id !== 'all') {
+      query += ` AND t.item_id = ?`;
+      params.push(item_id);
+    }
+
+    query += ` ORDER BY t.created_at DESC`;
+
+    try {
+      const rows = await queryAll(query, params);
+      const generatedDate = new Date().toLocaleDateString('id-ID', {
+        day: '2-digit', month: 'long', year: 'numeric'
+      });
+      const categoryDisplay = String(category).toUpperCase();
+      const html = materialInTemplate(rows, categoryDisplay, generatedDate);
+      const pdfBuffer = await generatePdf(html);
+      const buffer = Buffer.from(pdfBuffer);
+      const dateStr = new Date().toLocaleDateString('id-ID', {
+        day: '2-digit', month: 'short', year: 'numeric'
+      }).replace(/ /g, '-').toLowerCase();
+      const filename = `material-in-${categoryDisplay.toLowerCase()}-${dateStr}.pdf`;
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', buffer.length);
+      res.setHeader('Cache-Control', 'no-store');
+      return res.end(buffer);
+    } catch (err) {
+      console.error('Material-in PDF error:', err);
+      return res.status(500).json({ error: 'Failed to generate material-in PDF' });
+    }
   });
 
   app.get('/api/reports/steel-usage-json', requireAuth, async (req, res) => {
